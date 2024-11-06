@@ -1,0 +1,26 @@
+openapi: 3.0.0
+info:
+  title: Sample API
+  description: API documentation for Sample API
+  version: 1.0.0
+paths:
+  /login:
+    post:
+      summary: User login
+      description: This endpoint allows a user to log in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                account:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid username or password
