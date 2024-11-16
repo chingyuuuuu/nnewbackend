@@ -109,3 +109,14 @@ class QA(db.Model):
        self.image=image
        self.quser_id=quser_id
 
+class UnansweredQuestions(db.Model):
+     __tablename__="Unansweredquestions"
+     id=db.Column(db.Integer,primary_key=True)
+     question=db.Column(db.String(100),nullable=False)
+     occurence_count=db.Column(db.Integer,default=1)
+     created_at=db.Column(db.DateTime,default=datetime.now(timezone.utc))
+     updated_at=db.Column(db.DateTime,default=datetime.now(timezone.utc))
+     fk_user_id = db.Column(db.Integer, db.ForeignKey("user.user_id"), nullable=False)
+
+     def __repr__(self):
+         return f"<UnansweredQuestions(id={self.id}, question={self.question}, occurrence_count={self.occurrence_count})>"

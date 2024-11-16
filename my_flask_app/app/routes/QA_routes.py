@@ -1,9 +1,10 @@
-from flask import Blueprint, request, jsonify,send_from_directory
+from flask import Blueprint, request, jsonify,send_from_directory,session
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import jieba
 import os
-import openai
+import requests
+from ..config import Config
 
 
 QA_routes=Blueprint('QA_routes',__name__)
@@ -161,17 +162,43 @@ def uploaded_file(filename):
 
 
 
+
+#儲存未解答的問題
+def save_unanswered_question(question,userId):
+    from ..models import db,UnansweredQuestions
+    from datetime import datetime,timezone
+
+    existing_question=UnansweredQuestions.query.filter_by(question=question,fk_user_id=userId).first()
+    #如果問題已經存在
+    if existing_question:
+        existing_question. occurence_count+=1
+        existing_question.updated_at=datetime.now(timezone.utc),
+    else:
+        new_question=UnansweredQuestions(
+            question=question,
+            occurence_count=1,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            fk_user_id=userId,
+        )
+        db.session.add(new_question)
+    db.session.commit()
+
 #預設基本的問候語
 greeting_responses={
      "你好":"你好!有甚麼可以幫助您的?",
      "謝謝":"不客氣，隨時為您服務!",
      "再見":"再見!期待再次為您服務",
 }
+
 #從前端獲得問題->然後尋找相似的問題->獲取答案
 @QA_routes.route('/query_qa',methods=['POST'])
 def query_qa():
     from ..models import QA
+
+    #接收用戶問題
     user_question=request.json.get('question')
+    userId=request.json.get('user_id')
     if not user_question:
         return jsonify({"error":"Question is required"}),400
 
@@ -198,20 +225,53 @@ def query_qa():
         best_answer = qa_data[most_similar_idx].answer
         return jsonify({"answer": best_answer}), 200
 
-    #Step4-若無法找到匹配答案，調用chatgpt去做回答
+    #Step4-若無法找到匹配答案，調用Hugging face API去做回答,這個1分鐘只能回答一次
     try:
-        response=openai.chat.completions.create(
-            model="gpt-3.5-turbo-0125",#快速對話系統
-            messages=[{"role":"user","content":user_question}],
-            max_tokens=100,
-            temperature=0.5
-        )
-        chatgpt_answer = response.choices[0].message['content'].strip()
-        return jsonify({"answer":chatgpt_answer}),200
+        save_unanswered_question(user_question,userId)
+        answer = query_huggingface_api(user_question)
+        return jsonify({"answer":answer}),200
     except Exception as e:
         print(f"Error occured:{e}")
         return jsonify({"error":"An error occurred while processing the question"}),500
+def  query_huggingface_api(question):
+    url=Config.HF_API_URL
+    headers={"Authorization":f"Bearer {Config.HF_API_TOKEN}"}
+    data = {"inputs": question}
+    response = requests.post(url,headers=headers,json=data)
+    #處理回應
+    if response.status_code==200:
+        response_json = response.json()
+        if isinstance(response_json,list) and len(response_json)>0:
+            return response_json[0]["generated_text"].strip()
+        else:
+            return "抱歉，無法產生回應"
+    else:
+        raise Exception(f"Hugging Face API Error: {response.status_code} - {response.text}")
 
-#紀錄未回答問題的表
-#@QA_routes.route('/',methods=['POST'])
+
+
+
+#加載未回答的問題
+@QA_routes.route('/unanswered_questions', methods=['GET'])
+def fetch_unanswered_questions():
+    from ..models import UnansweredQuestions
+    user_id = request.args.get('user_id')
+    try:
+        unanswered_questions = UnansweredQuestions.query.filter_by(fk_user_id=user_id).all()
+        result = [
+            {
+                "id": question.id,
+                "question": question.question,
+                "occurence_count": question.occurence_count,
+            }
+            for question in unanswered_questions
+        ]
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        print(f"Error fetching unanswered questions: {e}")
+        return jsonify({"error": "Failed to fetch unanswered questions"}), 500
+
+
 

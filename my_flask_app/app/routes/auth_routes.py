@@ -1,6 +1,6 @@
 import string
 import random
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify,session
 from sqlalchemy.exc import SQLAlchemyError
 from my_flask_app.app.models import User
 from flask_mail import Message
@@ -26,6 +26,8 @@ def login():
         if not user:
             return jsonify({"message" : "Invalid username or password"}),401
         if check_password_hash(user.password,password):
+            session['user_id']=user.user_id
+
             # 從後端傳送user_id到前端
             return jsonify({"message":"Login successful","user_id":str(user.user_id)})
         else:

@@ -21,3 +21,7 @@ class Config:
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'False') == 'True'
     MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'False') == 'True'
+
+    #API
+    HF_API_URL = "https://api-inference.huggingface.co/models/EleutherAI/gpt-neo-2.7B"  # 可更改為其他模型
+    HF_API_TOKEN = os.getenv("HUGGING_FACE_API_TOKEN")#從env中讀取api token
