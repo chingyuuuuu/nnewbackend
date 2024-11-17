@@ -63,14 +63,16 @@ class Order(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))  # 创建时间
     check = db.Column(db.Boolean, default=False)  # 用于检查订单状态（可选）
     user_id = db.Column(db.Integer, nullable=False)
-
+    remark=db.Column(db.String(255),nullable=True)#可以讓客人加入備註
+    is_active = db.Column(db.Boolean, default=True) #是否為今日訂單
     # 加入與OrderProduct的關係
     order_products = relationship('OrderProduct', back_populates='order')
 
-    def __init__(self, table, total_amount, user_id):  # 确保创建 Order 所有必要的属性都被正确地初始化
+    def __init__(self, table, total_amount, user_id,remark=None):  # 确保创建 Order 所有必要的属性都被正确地初始化
         self.table = table
         self.total_amount = total_amount
         self.user_id = user_id
+        self.remark= remark
 
     def __repr__(self):
         return f'<Order {self.order_id}: Table {self.table}, Total {self.total_amount}>'

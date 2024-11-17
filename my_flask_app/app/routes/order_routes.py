@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import SQLAlchemyError
+from datetime import datetime, timezone, timedelta
 
 order_routes = Blueprint('order_routes', __name__)
 
@@ -18,13 +19,14 @@ def save_order():
     products = data['products']  # products 是一個包含 product_id 和 quantity 的列表
     total_amount = data['total_amount']
     user_id = int(data['user_id'])
-
+    remark=data.get('remark')#獲取remark,default=none,不會拋出異常
     try:
         # 建立新的訂單
         new_order=Order(
             table=table_number,
             total_amount=total_amount,
-            user_id=user_id
+            user_id=user_id,
+            remark=remark,
         )
         db.session.add(new_order)
         db.session.commit()  # 先提交以生成新的order_id
@@ -64,7 +66,9 @@ def get_all_orders(user_id):
                     "table":order.table,
                     "total_amount":order.total_amount,
                     "created_at": order.created_at.strftime('%Y-%m-%dT%H:%M:%S'), # 格式化日期
-                    "check":order.check
+                    "remark":order.remark,
+                    "check":order.check,
+                    "is_active":order.is_active,
                 })
             return jsonify(order_data),200
     except Exception as e:
@@ -126,4 +130,22 @@ def get_order_details(orderId):
          }),200
      except Exception as e:
           return jsonify({"error":str(e)}),500
+
+@order_routes.route('/refresh_orders',methods=['POST'])
+def refresh_orders():
+    from ..models import Order,db
+    try:
+        now = datetime.now(timezone.utc)
+        today_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+        today_end = today_start + timedelta(days=1)
+
+        Order.query.filter(Order.created_at >= today_start, Order.created_at < today_end).update({"is_active": False})
+        db.session.commit()
+        return jsonify({"message":"已刷新今日訂單"}),200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error":str(e)}),500
+
+
+
 
