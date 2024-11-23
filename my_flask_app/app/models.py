@@ -64,7 +64,6 @@ class Order(db.Model):
     check = db.Column(db.Boolean, default=False)  # 用于检查订单状态（可选）
     user_id = db.Column(db.Integer, nullable=False)
     remark=db.Column(db.String(255),nullable=True)#可以讓客人加入備註
-    is_active = db.Column(db.Boolean, default=True) #是否為今日訂單
     # 加入與OrderProduct的關係
     order_products = relationship('OrderProduct', back_populates='order')
 

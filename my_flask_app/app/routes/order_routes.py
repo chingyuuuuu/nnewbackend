@@ -52,7 +52,7 @@ def save_order():
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
 
-
+#歷史訂單紀錄
 @order_routes.route('/getorder/<int:user_id>',methods=['GET'])
 def get_all_orders(user_id):
     from ..models import Order
@@ -68,16 +68,39 @@ def get_all_orders(user_id):
                     "created_at": order.created_at.strftime('%Y-%m-%dT%H:%M:%S'), # 格式化日期
                     "remark":order.remark,
                     "check":order.check,
-                    "is_active":order.is_active,
                 })
             return jsonify(order_data),200
     except Exception as e:
         print(f'Error{e}')
         return jsonify({"error":str(e)}),500
 
-
-
-
+#根據日期去調用訂單-今日訂單
+#需要靈活性地去使用這段-所以根據傳過來的日期去查詢訂單
+@order_routes.route('/getdayorder/<int:user_id>',methods=['GET'])
+def get_day_orders(user_id):
+    from ..models import Order
+    try:
+        date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+        query_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        orders=Order.query.filter(
+             Order.user_id==user_id,
+             Order.created_at>=query_date,
+             Order.created_at<query_date+timedelta(days=1)
+        ).all()
+        order_data=[]
+        for order in orders:
+            order_data.append({
+                 "order_id":order.order_id,
+                 "table":order.table,
+                 "total_amout":order.total_amount,
+                 "created_at": order.created_at.strftime('%Y-%m-%dT%H:%M:%S'),  # 格式化日期
+                 "remark": order.remark,
+                 "check": order.check,
+            })
+        return jsonify(order_data),200
+    except Exception as e:
+        print(f'Error:{e}')
+        return jsonify({"error":str(e)}),500
 
 @order_routes.route('/getorderforclient/<string:tableNumber>',methods=['GET'])
 def get_order_for_client(tableNumber):
@@ -131,21 +154,18 @@ def get_order_details(orderId):
      except Exception as e:
           return jsonify({"error":str(e)}),500
 
-@order_routes.route('/refresh_orders',methods=['POST'])
-def refresh_orders():
+#更新訂單結帳狀態
+@order_routes.route('/updateorder/<int:order_id>', methods=['PUT'])
+def update_order(order_id):
     from ..models import Order,db
+    data = request.json
     try:
-        now = datetime.now(timezone.utc)
-        today_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
-        today_end = today_start + timedelta(days=1)
-
-        Order.query.filter(Order.created_at >= today_start, Order.created_at < today_end).update({"is_active": False})
-        db.session.commit()
-        return jsonify({"message":"已刷新今日訂單"}),200
+        order = Order.query.get(order_id)
+        if order:
+            order.check = data.get('check', False)#更新check狀態，這裡的false是預設值
+            db.session.commit()
+            return jsonify({"message": "Order updated successfully"}), 200
+        else:
+            return jsonify({"error": "Order not found"}), 404
     except Exception as e:
-        db.session.rollback()
-        return jsonify({"error":str(e)}),500
-
-
-
-
+        return jsonify({"error": str(e)}), 500
