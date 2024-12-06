@@ -92,7 +92,7 @@ def get_day_orders(user_id):
             order_data.append({
                  "order_id":order.order_id,
                  "table":order.table,
-                 "total_amout":order.total_amount,
+                 "total_amount":order.total_amount,
                  "created_at": order.created_at.strftime('%Y-%m-%dT%H:%M:%S'),  # 格式化日期
                  "remark": order.remark,
                  "check": order.check,

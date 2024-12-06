@@ -224,15 +224,18 @@ def query_qa():
     if similarities[0][most_similar_idx] > 0.5:  # 0.5 可根據需求調整
         best_answer = qa_data[most_similar_idx].answer
         return jsonify({"answer": best_answer}), 200
-
+    else:
+        return jsonify({"answer": "抱歉，目前無法回答您這個問題"}), 200
     #Step4-若無法找到匹配答案，調用Hugging face API去做回答,這個1分鐘只能回答一次
-    try:
+    """
+        try:
         save_unanswered_question(user_question,userId)
         answer = query_huggingface_api(user_question)
         return jsonify({"answer":answer}),200
     except Exception as e:
         print(f"Error occured:{e}")
         return jsonify({"error":"An error occurred while processing the question"}),500
+    
 def  query_huggingface_api(question):
     url=Config.HF_API_URL
     headers={"Authorization":f"Bearer {Config.HF_API_TOKEN}"}
@@ -247,7 +250,7 @@ def  query_huggingface_api(question):
             return "抱歉，無法產生回應"
     else:
         raise Exception(f"Hugging Face API Error: {response.status_code} - {response.text}")
-
+    """
 
 
 
